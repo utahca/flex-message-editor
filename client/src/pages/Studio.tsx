@@ -1,0 +1,239 @@
+import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { JsonEditor } from "@/components/JsonEditor";
+import { FlexPreview } from "@/components/FlexPreview";
+import { FlexTreeView } from "@/components/FlexTreeView";
+import { PropertyPanel } from "@/components/PropertyPanel";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { FlexStudioLogo } from "@/components/Logo";
+import { Button } from "@/components/ui/button";
+import { SAMPLE_BUBBLE, SAMPLE_JSON } from "@/lib/sample";
+import { formatPath, getAtPath, setAtPath, type FlexPath } from "@/lib/flexPath";
+
+type ParseResult =
+  | { ok: true; value: unknown }
+  | { ok: false; error: string };
+
+function tryParse(text: string): ParseResult {
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
+
+export default function Studio() {
+  const [jsonText, setJsonText] = useState<string>(SAMPLE_JSON);
+  const [dark, setDark] = useState<boolean>(() =>
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-color-scheme: dark)").matches,
+  );
+  const [treeOpen, setTreeOpen] = useState(true);
+  const [selectedPath, setSelectedPath] = useState<FlexPath | null>(null);
+
+  // Apply theme class.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (dark) root.classList.add("dark");
+    else root.classList.remove("dark");
+  }, [dark]);
+
+  const parsed = useMemo(() => tryParse(jsonText), [jsonText]);
+
+  // The parsed object — only updated when JSON is valid.
+  const [lastValidValue, setLastValidValue] = useState<any>(SAMPLE_BUBBLE);
+  useEffect(() => {
+    if (parsed.ok) {
+      setLastValidValue(parsed.value);
+    }
+  }, [parsed]);
+
+  // The node currently selected via tree (derived from selected path).
+  const selectedNode = useMemo(() => {
+    if (!selectedPath) return null;
+    if (!parsed.ok) return null;
+    return getAtPath(parsed.value, selectedPath);
+  }, [selectedPath, parsed]);
+
+  // Auto-clear selection if path no longer exists.
+  useEffect(() => {
+    if (selectedPath && parsed.ok) {
+      const v = getAtPath(parsed.value, selectedPath);
+      if (v === undefined) setSelectedPath(null);
+    }
+  }, [selectedPath, parsed]);
+
+  const handleSelect = useCallback((p: FlexPath) => {
+    setSelectedPath(p);
+  }, []);
+
+  const handlePropertyChange = useCallback(
+    (p: FlexPath, value: unknown) => {
+      if (!parsed.ok) return;
+      const next = setAtPath(parsed.value, p, value);
+      setJsonText(JSON.stringify(next, null, 2));
+    },
+    [parsed],
+  );
+
+  const resetSample = useCallback(() => {
+    setJsonText(SAMPLE_JSON);
+    setSelectedPath(null);
+  }, []);
+
+  return (
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
+      {/* HEADER */}
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-card/60 px-4 backdrop-blur">
+        <div className="flex items-center gap-2.5">
+          <FlexStudioLogo className="h-7 w-7" />
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold leading-tight tracking-tight" data-testid="text-logo">
+              Flex Studio
+            </span>
+            <span className="text-[10px] uppercase leading-tight tracking-wider text-muted-foreground">
+              LINE Flex Playground
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={resetSample}
+            data-testid="button-reset-sample"
+            className="gap-1.5"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">サンプルに戻す</span>
+            <span className="sm:hidden">サンプル</span>
+          </Button>
+          <ThemeToggle dark={dark} onToggle={() => setDark((v) => !v)} />
+        </div>
+      </header>
+
+      {/* MAIN */}
+      <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        {/* LEFT: JSON EDITOR */}
+        <section
+          className="flex h-[40vh] min-h-0 shrink-0 flex-col border-b border-border lg:h-auto lg:w-1/2 lg:flex-1 lg:border-b-0 lg:border-r"
+          data-testid="pane-editor"
+        >
+          <div className="flex h-9 shrink-0 items-center justify-between border-b border-border bg-muted/40 px-3">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              JSON Editor
+            </span>
+            {!parsed.ok && (
+              <span className="rounded bg-destructive/15 px-2 py-0.5 text-[11px] font-medium text-destructive" data-testid="text-parse-error">
+                {parsed.error}
+              </span>
+            )}
+          </div>
+          <div className="min-h-0 flex-1">
+            <JsonEditor value={jsonText} onChange={setJsonText} dark={dark} />
+          </div>
+        </section>
+
+        {/* RIGHT: PREVIEW + TREE */}
+        <section className="flex min-h-0 flex-1 flex-col lg:w-1/2 lg:flex-1">
+          {/* Preview */}
+          <div className="flex min-h-0 flex-1 flex-col bg-muted/30">
+            <div className="flex h-9 shrink-0 items-center border-b border-border bg-muted/40 px-3">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Preview
+              </span>
+            </div>
+            {/* LINE-talk-style framing */}
+            <div className="flex min-h-0 flex-1 flex-col items-stretch overflow-auto p-4">
+              <div className="mx-auto w-full max-w-[360px]">
+                <div className="flex items-center gap-2 rounded-t-xl bg-primary/90 px-3 py-2 text-xs font-medium text-primary-foreground">
+                  <span className="h-2 w-2 rounded-full bg-white/80" />
+                  Flex Studio
+                </div>
+                <div className="rounded-b-xl border border-t-0 border-border bg-background/80 p-3 shadow-sm">
+                  {parsed.ok ? (
+                    <FlexPreview json={lastValidValue} />
+                  ) : (
+                    <div
+                      role="alert"
+                      className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                      data-testid="text-preview-error"
+                    >
+                      <div className="font-medium">Invalid JSON</div>
+                      <div className="mt-1 font-mono text-xs opacity-80">{parsed.error}</div>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-2 text-center text-[10px] text-muted-foreground">
+                  Preview powered by <span className="font-mono">flex-render-react</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tree */}
+          <div
+            className={
+              "flex shrink-0 flex-col border-t border-border bg-card transition-[max-height] " +
+              (treeOpen ? "max-h-[45vh]" : "max-h-9")
+            }
+            data-testid="pane-tree"
+          >
+            <button
+              type="button"
+              onClick={() => setTreeOpen((v) => !v)}
+              className="flex h-9 shrink-0 items-center justify-between border-b border-border bg-muted/40 px-3 hover-elevate"
+              data-testid="button-toggle-tree"
+              aria-expanded={treeOpen}
+            >
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                ツリービュー
+              </span>
+              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                {selectedPath && (
+                  <span className="hidden font-mono text-[10px] sm:inline" data-testid="text-selected-path">
+                    {formatPath(selectedPath)}
+                  </span>
+                )}
+                {treeOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+              </span>
+            </button>
+            {treeOpen && (
+              <div className="flex min-h-0 flex-1">
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  <FlexTreeView
+                    root={parsed.ok ? parsed.value : null}
+                    selectedPath={selectedPath}
+                    onSelect={handleSelect}
+                  />
+                </div>
+                {selectedPath && selectedNode != null && (
+                  <div className="hidden w-[280px] shrink-0 md:block">
+                    <PropertyPanel
+                      node={selectedNode as any}
+                      path={selectedPath}
+                      onChange={handlePropertyChange}
+                      onClose={() => setSelectedPath(null)}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      </main>
+
+      {/* Mobile property panel — full-screen overlay */}
+      {selectedPath && selectedNode != null && (
+        <div className="fixed inset-x-0 bottom-0 z-30 max-h-[70vh] overflow-y-auto rounded-t-2xl border-t border-border bg-card shadow-2xl md:hidden">
+          <PropertyPanel
+            node={selectedNode as any}
+            path={selectedPath}
+            onChange={handlePropertyChange}
+            onClose={() => setSelectedPath(null)}
+          />
+        </div>
+      )}
+    </div>
+  );
+}

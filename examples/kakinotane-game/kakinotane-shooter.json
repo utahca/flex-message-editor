@@ -1,0 +1,204 @@
+{
+  "_comment": "柿の種シューター v1.0 — Flex Messageのレイアウト機能だけで作る『なんちゃってシューティングゲーム』。FlexStudioのJSONエディタにこの中身を貼り付けて遊んでください(_commentキーは削除すること)。これはゲームか? と聞かれたら『いいえ』と答えてください。",
+  "type": "bubble",
+  "size": "mega",
+  "header": {
+    "type": "box",
+    "layout": "vertical",
+    "backgroundColor": "#1a1a2e",
+    "paddingAll": "12px",
+    "contents": [
+      {
+        "type": "box",
+        "layout": "horizontal",
+        "contents": [
+          {
+            "type": "text",
+            "text": "🥜 KAKINOTANE SHOOTER",
+            "color": "#ffd166",
+            "weight": "bold",
+            "size": "lg",
+            "flex": 1
+          },
+          {
+            "type": "text",
+            "text": "SCORE: 00342",
+            "color": "#06d6a0",
+            "size": "sm",
+            "align": "end",
+            "gravity": "center"
+          }
+        ]
+      }
+    ]
+  },
+  "body": {
+    "type": "box",
+    "layout": "vertical",
+    "backgroundColor": "#16213e",
+    "paddingAll": "0px",
+    "spacing": "none",
+    "contents": [
+      {
+        "type": "box",
+        "layout": "vertical",
+        "height": "260px",
+        "paddingAll": "0px",
+        "contents": [
+          {
+            "type": "box",
+            "layout": "horizontal",
+            "paddingTop": "8px",
+            "paddingStart": "20%",
+            "contents": [
+              { "type": "text", "text": "👾", "size": "xxl", "align": "center", "flex": 1 },
+              { "type": "filler" },
+              { "type": "text", "text": "👽", "size": "xxl", "align": "center", "flex": 1 },
+              { "type": "filler" },
+              { "type": "text", "text": "👾", "size": "xxl", "align": "center", "flex": 1 }
+            ]
+          },
+          {
+            "type": "box",
+            "layout": "horizontal",
+            "paddingTop": "28px",
+            "paddingStart": "30%",
+            "contents": [
+              { "type": "text", "text": "👽", "size": "xxl", "flex": 1, "align": "center" },
+              { "type": "filler" },
+              { "type": "text", "text": "👾", "size": "xxl", "flex": 1, "align": "center" }
+            ]
+          },
+          {
+            "type": "box",
+            "layout": "vertical",
+            "paddingTop": "40px",
+            "paddingStart": "44%",
+            "contents": [
+              { "type": "text", "text": "🥜", "size": "xl", "align": "start", "color": "#ffd166" }
+            ]
+          },
+          {
+            "type": "box",
+            "layout": "vertical",
+            "paddingTop": "8px",
+            "paddingStart": "44%",
+            "contents": [
+              { "type": "text", "text": "🥜", "size": "xl", "align": "start", "color": "#ffd166" }
+            ]
+          },
+          {
+            "type": "box",
+            "layout": "vertical",
+            "paddingTop": "16px",
+            "paddingStart": "40%",
+            "contents": [
+              { "type": "text", "text": "🚀", "size": "3xl", "align": "start" }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "separator",
+        "color": "#06d6a0"
+      },
+      {
+        "type": "box",
+        "layout": "horizontal",
+        "backgroundColor": "#0f3460",
+        "paddingAll": "10px",
+        "spacing": "sm",
+        "contents": [
+          {
+            "type": "text",
+            "text": "❤️❤️❤️",
+            "size": "sm",
+            "color": "#e63946",
+            "flex": 1
+          },
+          {
+            "type": "text",
+            "text": "LV.3",
+            "size": "sm",
+            "color": "#ffd166",
+            "weight": "bold",
+            "align": "center",
+            "flex": 1
+          },
+          {
+            "type": "text",
+            "text": "🥜×∞",
+            "size": "sm",
+            "color": "#06d6a0",
+            "align": "end",
+            "flex": 1
+          }
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "type": "box",
+    "layout": "vertical",
+    "backgroundColor": "#1a1a2e",
+    "paddingAll": "10px",
+    "spacing": "sm",
+    "contents": [
+      {
+        "type": "box",
+        "layout": "horizontal",
+        "spacing": "sm",
+        "contents": [
+          {
+            "type": "button",
+            "style": "secondary",
+            "color": "#ffd166",
+            "flex": 1,
+            "height": "sm",
+            "action": {
+              "type": "message",
+              "label": "◀ 左",
+              "text": "move_left"
+            }
+          },
+          {
+            "type": "button",
+            "style": "primary",
+            "color": "#e63946",
+            "flex": 2,
+            "height": "sm",
+            "action": {
+              "type": "message",
+              "label": "🥜 FIRE!",
+              "text": "fire"
+            }
+          },
+          {
+            "type": "button",
+            "style": "secondary",
+            "color": "#ffd166",
+            "flex": 1,
+            "height": "sm",
+            "action": {
+              "type": "message",
+              "label": "右 ▶",
+              "text": "move_right"
+            }
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "text": "※ボタンを押してもゲームは進みません",
+        "size": "xxs",
+        "color": "#888888",
+        "align": "center",
+        "wrap": true
+      }
+    ]
+  },
+  "styles": {
+    "header": { "separator": true, "separatorColor": "#06d6a0" },
+    "footer": { "separator": true, "separatorColor": "#06d6a0" }
+  }
+}
