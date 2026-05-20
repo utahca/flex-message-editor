@@ -139,7 +139,18 @@ git remote add origin git@github.com:<yourname>/flex-studio.git
 git push -u origin main
 ```
 
-GitHub Pages 化の段取りは [`plan.md` の Phase 2](./plan.md#phase-2-github-pages-対応) を参照。
+## GitHub Pages で公開する
+
+このリポジトリには `.github/workflows/deploy.yml` を追加済み。`main` へ push すると自動で Pages にデプロイされる。
+
+1. GitHub リポジトリの **Settings → Pages** を開く
+2. **Build and deployment** を **GitHub Actions** にする
+3. `main` ブランチへ push する
+4. Actions の `Deploy to GitHub Pages` が成功したら公開 URL で確認する
+
+> Vite の `base` は `GITHUB_PAGES=1` のとき `/<repo-name>/`（このリポジトリでは `/flex-message-editor/`）になるため、サブパス配信でもアセット参照が壊れない。
+
+GitHub Pages 化の詳細方針は [`plan.md` の Phase 2](./plan.md#phase-2-github-pages-対応) を参照。
 
 ---
 
