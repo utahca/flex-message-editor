@@ -9,7 +9,9 @@ import { formatPath, type FlexPath } from "@/lib/flexPath";
 type Props = {
   node: any;
   path: FlexPath;
+  root?: any;
   onChange: (path: FlexPath, value: unknown) => void;
+  onSelectPath?: (path: FlexPath) => void;
   onClose: () => void;
 };
 
@@ -67,7 +69,7 @@ const TYPE_FIELDS: Record<string, FieldDef[]> = {
 
 const NONE_VALUE = "__none__";
 
-export function PropertyPanel({ node, path, onChange, onClose }: Props) {
+export function PropertyPanel({ node, path, root, onChange, onSelectPath, onClose }: Props) {
   const type = node?.type as string | undefined;
   const fields = (type && TYPE_FIELDS[type]) || [];
 
@@ -103,6 +105,30 @@ export function PropertyPanel({ node, path, onChange, onClose }: Props) {
         {fields.length === 0 && (
           <div className="text-sm text-muted-foreground">
             この要素 ({type ?? "unknown"}) 用の編集フィールドはありません。JSON エディタから直接編集してください。
+          </div>
+        )}
+
+        {type === "carousel" && Array.isArray(root?.contents) && (
+          <div className="space-y-2 rounded-md border border-border bg-background p-3">
+            <Label className="text-xs">Bubbles</Label>
+            <div className="flex flex-wrap gap-2">
+              {root.contents.map((_: unknown, i: number) => (
+                <Button
+                  key={i}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => onSelectPath?.(["contents", i])}
+                  data-testid={`button-select-bubble-${i}`}
+                >
+                  bubble[{i}]
+                </Button>
+              ))}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              編集したいバブルを選択してください。
+            </div>
           </div>
         )}
 
