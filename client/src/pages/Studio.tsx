@@ -25,8 +25,12 @@ function tryParse(text: string): ParseResult {
 export default function Studio() {
   const [jsonText, setJsonText] = useState<string>(() => {
     if (typeof window === "undefined") return SAMPLE_JSON;
-    const saved = window.localStorage.getItem("flex-studio:json");
-    return saved ?? SAMPLE_JSON;
+    try {
+      const saved = window.localStorage.getItem("flex-studio:json");
+      return saved ?? SAMPLE_JSON;
+    } catch {
+      return SAMPLE_JSON;
+    }
   });
   const [dark, setDark] = useState<boolean>(() =>
     typeof window !== "undefined" &&
@@ -46,7 +50,11 @@ export default function Studio() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem("flex-studio:json", jsonText);
+    try {
+      window.localStorage.setItem("flex-studio:json", jsonText);
+    } catch {
+      // Ignore storage errors (e.g. SecurityError in sandboxed/private contexts)
+    }
   }, [jsonText]);
 
   // The parsed object — only updated when JSON is valid.
