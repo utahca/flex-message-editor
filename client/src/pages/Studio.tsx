@@ -9,27 +9,7 @@ import { FlexStudioLogo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { SAMPLE_BUBBLE, SAMPLE_JSON } from "@/lib/sample";
 import { deleteAtPath, formatPath, getAtPath, setAtPath, type FlexPath } from "@/lib/flexPath";
-
-const ADDABLE_TYPES = ["box", "text", "image", "button", "separator", "spacer", "icon"] as const;
-
-function createDefaultNode(type: (typeof ADDABLE_TYPES)[number]) {
-  switch (type) {
-    case "box":
-      return { type: "box", layout: "vertical", contents: [] };
-    case "text":
-      return { type: "text", text: "New text" };
-    case "image":
-      return { type: "image", url: "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png" };
-    case "button":
-      return { type: "button", action: { type: "uri", label: "Open", uri: "https://example.com" } };
-    case "separator":
-      return { type: "separator" };
-    case "spacer":
-      return { type: "spacer", size: "md" };
-    case "icon":
-      return { type: "icon", url: "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png" };
-  }
-}
+import { createDefaultNode, getAddableTypesForNode, type AddableType } from "@/lib/flexAdd";
 
 type ParseResult =
   | { ok: true; value: unknown }
@@ -120,18 +100,18 @@ export default function Studio() {
   }, []);
 
   const canDeleteSelected = Boolean(selectedPath && selectedPath.length > 0 && parsed.ok);
-  const canAddChild = useMemo(() => {
-    if (!selectedPath || !parsed.ok) return false;
+  const addableTypes = useMemo((): readonly AddableType[] => {
+    if (!selectedPath || !parsed.ok) return [];
     const selected = getAtPath(parsed.value, selectedPath) as any;
-    if (!selected || typeof selected !== "object") return false;
-    if (selected.type === "box" || selected.type === "bubble" || selected.type === "carousel") return true;
-    return false;
+    return getAddableTypesForNode(selected);
   }, [selectedPath, parsed]);
+  const canAddChild = addableTypes.length > 0;
 
-  const addChild = useCallback((newType: (typeof ADDABLE_TYPES)[number]) => {
+  const addChild = useCallback((newType: AddableType) => {
     if (!selectedPath || !parsed.ok) return;
     const selected = getAtPath(parsed.value, selectedPath) as any;
     if (!selected || typeof selected !== "object") return;
+    if (!getAddableTypesForNode(selected).includes(newType)) return;
     const contents = Array.isArray(selected.contents) ? selected.contents : [];
     const next = setAtPath(parsed.value, [...selectedPath, "contents"], [...contents, createDefaultNode(newType)]);
     setJsonText(JSON.stringify(next, null, 2));
@@ -256,7 +236,7 @@ export default function Studio() {
               <span className="ml-auto mr-2 hidden items-center gap-1 sm:flex">
                 {canAddChild && (
                   <div className="flex items-center gap-1">
-                    {ADDABLE_TYPES.map((t) => (
+                    {addableTypes.map((t) => (
                       <Button key={t} type="button" variant="outline" size="sm" className="h-6 px-2 text-[10px]" onClick={() => addChild(t)}>
                         <Plus className="mr-1 h-3 w-3" />{t}
                       </Button>
