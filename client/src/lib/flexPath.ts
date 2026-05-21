@@ -45,3 +45,20 @@ export function setAtPath<T>(root: T, path: FlexPath, value: unknown): T {
     }
   });
 }
+
+export function deleteAtPath<T>(root: T, path: FlexPath): T {
+  return produce(root, (draft: any) => {
+    if (path.length === 0) return;
+    let cur: any = draft;
+    for (let i = 0; i < path.length - 1; i++) {
+      cur = cur[path[i] as any];
+      if (cur == null) return;
+    }
+    const last = path[path.length - 1];
+    if (Array.isArray(cur) && typeof last === "number") {
+      cur.splice(last, 1);
+      return;
+    }
+    delete cur[last as any];
+  });
+}

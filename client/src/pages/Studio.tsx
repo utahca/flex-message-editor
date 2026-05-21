@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { JsonEditor } from "@/components/JsonEditor";
 import { FlexPreview } from "@/components/FlexPreview";
@@ -8,7 +8,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { FlexStudioLogo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { SAMPLE_BUBBLE, SAMPLE_JSON } from "@/lib/sample";
-import { formatPath, getAtPath, setAtPath, type FlexPath } from "@/lib/flexPath";
+import { deleteAtPath, formatPath, getAtPath, setAtPath, type FlexPath } from "@/lib/flexPath";
+import { createDefaultNode, getAddableTypesForNode, type AddableType } from "@/lib/flexAdd";
 
 type ParseResult =
   | { ok: true; value: unknown }
@@ -97,6 +98,32 @@ export default function Studio() {
     setJsonText(SAMPLE_JSON);
     setSelectedPath(null);
   }, []);
+
+  const canDeleteSelected = Boolean(selectedPath && selectedPath.length > 0 && parsed.ok);
+  const addableTypes = useMemo((): readonly AddableType[] => {
+    if (!selectedPath || !parsed.ok) return [];
+    const selected = getAtPath(parsed.value, selectedPath) as any;
+    return getAddableTypesForNode(selected);
+  }, [selectedPath, parsed]);
+  const canAddChild = addableTypes.length > 0;
+
+  const addChild = useCallback((newType: AddableType) => {
+    if (!selectedPath || !parsed.ok) return;
+    const selected = getAtPath(parsed.value, selectedPath) as any;
+    if (!selected || typeof selected !== "object") return;
+    if (!getAddableTypesForNode(selected).includes(newType)) return;
+    const contents = Array.isArray(selected.contents) ? selected.contents : [];
+    const next = setAtPath(parsed.value, [...selectedPath, "contents"], [...contents, createDefaultNode(newType)]);
+    setJsonText(JSON.stringify(next, null, 2));
+    setSelectedPath([...selectedPath, "contents", contents.length]);
+  }, [selectedPath, parsed]);
+
+  const deleteSelected = useCallback(() => {
+    if (!selectedPath || selectedPath.length === 0 || !parsed.ok) return;
+    const next = deleteAtPath(parsed.value, selectedPath);
+    setJsonText(JSON.stringify(next, null, 2));
+    setSelectedPath(null);
+  }, [selectedPath, parsed]);
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
@@ -196,25 +223,43 @@ export default function Studio() {
             }
             data-testid="pane-tree"
           >
-            <button
-              type="button"
-              onClick={() => setTreeOpen((v) => !v)}
-              className="flex h-9 shrink-0 items-center justify-between border-b border-border bg-muted/40 px-3 hover-elevate"
-              data-testid="button-toggle-tree"
-              aria-expanded={treeOpen}
-            >
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                ツリービュー
-              </span>
-              <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                {selectedPath && (
-                  <span className="hidden font-mono text-[10px] sm:inline" data-testid="text-selected-path">
-                    {formatPath(selectedPath)}
-                  </span>
+            <div className="flex h-9 shrink-0 items-center border-b border-border bg-muted/40 px-3">
+              <button
+                type="button"
+                onClick={() => setTreeOpen((v) => !v)}
+                className="flex min-w-0 flex-1 items-center justify-between hover-elevate"
+                data-testid="button-toggle-tree"
+                aria-expanded={treeOpen}
+              >
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  ツリービュー
+                </span>
+                <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {selectedPath && (
+                    <span className="hidden font-mono text-[10px] sm:inline" data-testid="text-selected-path">
+                      {formatPath(selectedPath)}
+                    </span>
+                  )}
+                  {treeOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+                </span>
+              </button>
+              <div className="ml-2 hidden shrink-0 items-center gap-1 sm:flex">
+                {canAddChild && (
+                  <div className="flex items-center gap-1">
+                    {addableTypes.map((t) => (
+                      <Button key={t} type="button" variant="outline" size="sm" className="h-6 px-2 text-[10px]" onClick={() => addChild(t)}>
+                        <Plus className="mr-1 h-3 w-3" />{t}
+                      </Button>
+                    ))}
+                  </div>
                 )}
-                {treeOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
-              </span>
-            </button>
+                {canDeleteSelected && (
+                  <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-[10px]" onClick={deleteSelected}>
+                    <Trash2 className="mr-1 h-3 w-3" />delete
+                  </Button>
+                )}
+              </div>
+            </div>
             {treeOpen && (
               <div className="flex min-h-0 flex-1">
                 <div className="min-h-0 flex-1 overflow-y-auto">
@@ -229,7 +274,9 @@ export default function Studio() {
                     <PropertyPanel
                       node={selectedNode as any}
                       path={selectedPath}
+                      root={parsed.ok ? parsed.value : null}
                       onChange={handlePropertyChange}
+                      onSelectPath={handleSelect}
                       onClose={() => setSelectedPath(null)}
                     />
                   </div>
@@ -246,7 +293,9 @@ export default function Studio() {
           <PropertyPanel
             node={selectedNode as any}
             path={selectedPath}
+            root={parsed.ok ? parsed.value : null}
             onChange={handlePropertyChange}
+            onSelectPath={handleSelect}
             onClose={() => setSelectedPath(null)}
           />
         </div>
