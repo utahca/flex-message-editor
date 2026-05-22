@@ -2,13 +2,22 @@ import { ChevronDown, ChevronUp, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { JsonEditor } from "@/components/JsonEditor";
 import { FlexPreview } from "@/components/FlexPreview";
-import { FlexTreeView } from "@/components/FlexTreeView";
+import { FlexTreeView, type MoveDirection } from "@/components/FlexTreeView";
 import { PropertyPanel } from "@/components/PropertyPanel";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { FlexStudioLogo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { SAMPLE_BUBBLE, SAMPLE_JSON } from "@/lib/sample";
-import { deleteAtPath, formatPath, getAtPath, setAtPath, type FlexPath } from "@/lib/flexPath";
+import {
+  deleteAtPath,
+  formatPath,
+  getAtPath,
+  moveArrayItemAtPath,
+  remapPathAfterArrayMove,
+  setAtPath,
+  type ArrayMoveOffset,
+  type FlexPath,
+} from "@/lib/flexPath";
 import { createDefaultNode, getAddableTypesForNode, type AddableType } from "@/lib/flexAdd";
 
 type ParseResult =
@@ -124,6 +133,19 @@ export default function Studio() {
     setJsonText(JSON.stringify(next, null, 2));
     setSelectedPath(null);
   }, [selectedPath, parsed]);
+
+  const moveTreeRow = useCallback((path: FlexPath, direction: MoveDirection) => {
+    if (!parsed.ok) return;
+
+    const offset: ArrayMoveOffset = direction === "up" ? -1 : 1;
+    const next = moveArrayItemAtPath(parsed.value, path, offset);
+    if (next === parsed.value) return;
+
+    setJsonText(JSON.stringify(next, null, 2));
+    setSelectedPath((current) =>
+      current ? remapPathAfterArrayMove(current, path, offset) : current,
+    );
+  }, [parsed]);
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
@@ -267,6 +289,7 @@ export default function Studio() {
                     root={parsed.ok ? parsed.value : null}
                     selectedPath={selectedPath}
                     onSelect={handleSelect}
+                    onMove={moveTreeRow}
                   />
                 </div>
                 {selectedPath && selectedNode != null && (

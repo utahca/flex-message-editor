@@ -135,14 +135,14 @@ JSON ツリーへの参照は `(string | number)[]`。
 
 ## 4. 既知の制約と落とし穴
 
-1. **Carousel の編集はツリービューで未対応**
-   ルート JSON の `type === "bubble"` を前提に書かれている。Carousel (`type: "carousel"`) を JSON エディタに貼り付けるとプレビューは出るがツリーが空になる。対応は Phase 1 のタスク。
+1. **Carousel 編集はまだ限定的**
+   ルート JSON の `type === "carousel"` はツリービューに表示され、バブル選択とバブル追加はできる。ただしテンプレートからの作成や Carousel 専用の詳細編集 UI はまだないため、複雑な編集は JSON 直編集が必要。
 
 2. **プロパティパネルでサポートしているプロパティは限定的**
    text/color/size/weight/layout/spacing/margin/url 程度。padding, offset, position, gravity, flex, aspectRatio, aspectMode 等は JSON 直編集が必要。Phase 1 で網羅。
 
-3. **要素の追加/削除はツリービュー上ではできない**
-   現状は JSON 側で書く必要がある。Phase 1 で「+ 子要素を追加」「× 削除」ボタンを追加予定。
+3. **ツリー要素の並べ替えはボタン操作のみ**
+   既存ツリー要素の追加・削除と同一 `contents` 配列内の上下移動は UI からできる。ドラッグ & ドロップ並べ替えと親をまたぐ移動は未対応。
 
 4. **画像 URL は CORS を満たすホストでないとプレビューに出ない**
    `scdn.line-apps.com` 等は OK だが、Imgur 直リンク等は出ない場合あり。`flex-render-react` の挙動に依存。
@@ -164,13 +164,14 @@ JSON ツリーへの参照は `(string | number)[]`。
 
 優先度順:
 
-- [ ] **P1: Carousel ルート対応**
-  `FlexTreeView.tsx` を Carousel のとき `contents[].each((bubble, i) => …)` でループ表示するように拡張。`PropertyPanel.tsx` も carousel ルート時にバブル選択 UI を出す。
+- [x] **P1: Carousel ルート対応**
+  `FlexTreeView.tsx` は Carousel の `contents[]` バブルを表示し、`PropertyPanel.tsx` は carousel ルート時にバブル選択 UI を出す。
 
-- [ ] **P1: ツリーからの要素追加・削除・並べ替え**
-  - 「+」: Box / Text / Image / Button / Separator / Spacer / Icon を追加するメニュー
+- [x] **P1: ツリーからの要素追加・削除・並べ替え**
+  - 「+」: Box / Text / Image / Button / Separator / Spacer / Icon を追加
   - 「×」: 選択中の要素を削除（ルートは保護）
-  - drag & drop で並べ替え（後回しでも可）
+  - 上下ボタン: 同一 `contents` 配列内で並べ替え
+  - [ ] drag & drop で並べ替え（GitHub issue #9）
 
 - [ ] **P2: プロパティパネルのプロパティ網羅**
   Flex Message 公式仕様 ([elements](https://developers.line.biz/en/docs/messaging-api/flex-message-elements/), [layout](https://developers.line.biz/en/docs/messaging-api/flex-message-layout/)) を参照し、type ごとに以下を網羅:
