@@ -62,3 +62,51 @@ export function deleteAtPath<T>(root: T, path: FlexPath): T {
     delete cur[last as any];
   });
 }
+
+export type ArrayMoveOffset = -1 | 1;
+
+function hasSamePrefix(path: FlexPath, prefix: FlexPath): boolean {
+  if (path.length < prefix.length) return false;
+  return prefix.every((step, index) => path[index] === step);
+}
+
+export function moveArrayItemAtPath<T>(root: T, path: FlexPath, offset: ArrayMoveOffset): T {
+  return produce(root, (draft: any) => {
+    if (path.length === 0) return;
+
+    const index = path[path.length - 1];
+    if (typeof index !== "number") return;
+
+    const parent = getAtPath(draft, path.slice(0, -1));
+    if (!Array.isArray(parent)) return;
+
+    const targetIndex = index + offset;
+    if (index < 0 || index >= parent.length || targetIndex < 0 || targetIndex >= parent.length) return;
+
+    const [item] = parent.splice(index, 1);
+    parent.splice(targetIndex, 0, item);
+  });
+}
+
+export function remapPathAfterArrayMove(
+  path: FlexPath,
+  movedPath: FlexPath,
+  offset: ArrayMoveOffset,
+): FlexPath {
+  if (movedPath.length === 0) return path;
+
+  const movedIndex = movedPath[movedPath.length - 1];
+  if (typeof movedIndex !== "number") return path;
+
+  const parentPath = movedPath.slice(0, -1);
+  if (!hasSamePrefix(path, parentPath) || path.length <= parentPath.length) return path;
+
+  const selectedIndex = path[parentPath.length];
+  if (typeof selectedIndex !== "number") return path;
+
+  const targetIndex = movedIndex + offset;
+  if (selectedIndex !== movedIndex && selectedIndex !== targetIndex) return path;
+
+  const nextIndex = selectedIndex === movedIndex ? targetIndex : movedIndex;
+  return [...path.slice(0, parentPath.length), nextIndex, ...path.slice(parentPath.length + 1)];
+}
