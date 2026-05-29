@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Copy, Layers3, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { JsonEditor } from "@/components/JsonEditor";
 import { FlexPreview } from "@/components/FlexPreview";
@@ -8,6 +8,12 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { FlexStudioLogo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { SAMPLE_BUBBLE, SAMPLE_JSON } from "@/lib/sample";
+import { copyTextToClipboard, getCopyButtonLabel, type CopyStatus } from "@/lib/clipboard";
+import {
+  canWrapBubbleInCarousel,
+  getSelectionAfterCarouselWrap,
+  wrapBubbleInCarousel,
+} from "@/lib/flexRoot";
 import {
   deleteAtPath,
   formatPath,
@@ -48,6 +54,7 @@ export default function Studio() {
   );
   const [treeOpen, setTreeOpen] = useState(true);
   const [selectedPath, setSelectedPath] = useState<FlexPath | null>(null);
+  const [copyStatus, setCopyStatus] = useState<CopyStatus>("idle");
 
   // Apply theme class.
   useEffect(() => {
@@ -108,7 +115,27 @@ export default function Studio() {
     setSelectedPath(null);
   }, []);
 
+  const copyJsonToClipboard = useCallback(async () => {
+    if (!navigator.clipboard?.writeText) {
+      setCopyStatus("error");
+      return;
+    }
+
+    const status = await copyTextToClipboard(
+      (text) => navigator.clipboard.writeText(text),
+      jsonText,
+    );
+    setCopyStatus(status);
+  }, [jsonText]);
+
+  useEffect(() => {
+    if (copyStatus === "idle") return;
+    const timeoutId = window.setTimeout(() => setCopyStatus("idle"), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [copyStatus]);
+
   const canDeleteSelected = Boolean(selectedPath && selectedPath.length > 0 && parsed.ok);
+  const canConvertRootToCarousel = Boolean(parsed.ok && canWrapBubbleInCarousel(parsed.value));
   const addableTypes = useMemo((): readonly AddableType[] => {
     if (!selectedPath || !parsed.ok) return [];
     const selected = getAtPath(parsed.value, selectedPath) as any;
@@ -133,6 +160,13 @@ export default function Studio() {
     setJsonText(JSON.stringify(next, null, 2));
     setSelectedPath(null);
   }, [selectedPath, parsed]);
+
+  const convertRootToCarousel = useCallback(() => {
+    if (!parsed.ok || !canWrapBubbleInCarousel(parsed.value)) return;
+    const next = wrapBubbleInCarousel(parsed.value);
+    setJsonText(JSON.stringify(next, null, 2));
+    setSelectedPath((current) => getSelectionAfterCarouselWrap(current));
+  }, [parsed]);
 
   const moveTreeRow = useCallback((path: FlexPath, direction: MoveDirection) => {
     if (!parsed.ok) return;
@@ -185,15 +219,32 @@ export default function Studio() {
           className="flex h-[40vh] min-h-0 shrink-0 flex-col border-b border-border lg:h-auto lg:w-1/2 lg:flex-1 lg:border-b-0 lg:border-r"
           data-testid="pane-editor"
         >
-          <div className="flex h-9 shrink-0 items-center justify-between border-b border-border bg-muted/40 px-3">
+          <div className="flex h-9 shrink-0 items-center justify-between gap-3 border-b border-border bg-muted/40 px-3">
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               JSON Editor
             </span>
-            {!parsed.ok && (
-              <span className="rounded bg-destructive/15 px-2 py-0.5 text-[11px] font-medium text-destructive" data-testid="text-parse-error">
-                {parsed.error}
-              </span>
-            )}
+            <div className="flex min-w-0 items-center gap-2">
+              {!parsed.ok && (
+                <span className="truncate rounded bg-destructive/15 px-2 py-0.5 text-[11px] font-medium text-destructive" data-testid="text-parse-error">
+                  {parsed.error}
+                </span>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-6 shrink-0 gap-1.5 px-2 text-[10px]"
+                onClick={copyJsonToClipboard}
+                data-testid="button-copy-json"
+              >
+                {copyStatus === "success" ? (
+                  <Check className="h-3 w-3" />
+                ) : (
+                  <Copy className="h-3 w-3" />
+                )}
+                {getCopyButtonLabel(copyStatus)}
+              </Button>
+            </div>
           </div>
           <div className="min-h-0 flex-1">
             <JsonEditor value={jsonText} onChange={setJsonText} dark={dark} />
@@ -265,7 +316,19 @@ export default function Studio() {
                   {treeOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
                 </span>
               </button>
-              <div className="ml-2 hidden shrink-0 items-center gap-1 sm:flex">
+              <div className="ml-2 flex shrink-0 items-center gap-1 overflow-x-auto">
+                {canConvertRootToCarousel && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-[10px]"
+                    onClick={convertRootToCarousel}
+                    data-testid="button-convert-carousel"
+                  >
+                    <Layers3 className="mr-1 h-3 w-3" />carousel 化
+                  </Button>
+                )}
                 {canAddChild && (
                   <div className="flex items-center gap-1">
                     {addableTypes.map((t) => (
