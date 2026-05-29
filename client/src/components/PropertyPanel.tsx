@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatPath, type FlexPath } from "@/lib/flexPath";
+import { formatSelectOptionLabel, getDefaultSelectValue } from "@/lib/propertyDefaults";
 
 type Props = {
   node: any;
@@ -155,6 +156,7 @@ export function PropertyPanel({ node, path, root, onChange, onSelectPath, onClos
 
           if (f.kind === "select") {
             const cur = (value as string) ?? "";
+            const defaultValue = getDefaultSelectValue(type, f.key);
             return (
               <div key={f.key} className="space-y-1.5">
                 <Label className="text-xs">{f.label}</Label>
@@ -171,7 +173,7 @@ export function PropertyPanel({ node, path, root, onChange, onSelectPath, onClos
                     <SelectItem value={NONE_VALUE}>—</SelectItem>
                     {f.options!.map((o) => (
                       <SelectItem key={o} value={o}>
-                        {o}
+                        {formatSelectOptionLabel(o, defaultValue)}
                       </SelectItem>
                     ))}
                   </SelectContent>
