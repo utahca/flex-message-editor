@@ -26,13 +26,14 @@ export function canDeleteNode(root: unknown, path: FlexPath | null): boolean {
   const node = getAtPath(root, path);
   if (!isObjectNode(node)) return false;
 
-  if (path.length === 1 && BUBBLE_OPTIONAL_SLOTS.has(String(path[0]))) {
-    return isObjectNode(root) && root.type === "bubble";
+  const parent = getParent(root, path);
+
+  if (BUBBLE_OPTIONAL_SLOTS.has(String(path[path.length - 1]))) {
+    return isObjectNode(parent) && parent.type === "bubble";
   }
 
   if (pathEq(path, ["body"])) return false;
 
-  const parent = getParent(root, path);
   const index = getIndex(path);
   if (!Array.isArray(parent) || index === undefined) return false;
 
