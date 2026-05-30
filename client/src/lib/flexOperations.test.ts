@@ -9,10 +9,12 @@ import {
   deleteNodeAtPath,
   duplicateNodeAtPath,
   getCopiedNode,
+  getNodeOperationState,
   getSelectionAfterDuplicate,
   getSelectionAfterDelete,
   getSelectionAfterPaste,
   pasteNodeAtPath,
+  summarizeFlexNode,
 } from "./flexOperations";
 
 const bubbleRoot = {
@@ -201,4 +203,39 @@ test("canWrapRootBubbleFromSelection only allows selected root bubble", () => {
   assert.equal(canWrapRootBubbleFromSelection({ type: "bubble" }, []), true);
   assert.equal(canWrapRootBubbleFromSelection({ type: "bubble" }, ["body"]), false);
   assert.equal(canWrapRootBubbleFromSelection({ type: "carousel", contents: [] }, []), false);
+});
+
+test("summarizeFlexNode describes common flex nodes", () => {
+  assert.equal(summarizeFlexNode({ type: "text", text: "Hello world" }), 'text "Hello world"');
+  assert.equal(
+    summarizeFlexNode({ type: "button", action: { type: "uri", label: "Open", uri: "https://example.com" } }),
+    'button "Open"',
+  );
+  assert.equal(summarizeFlexNode({ type: "box", layout: "vertical", contents: [] }), "box layout: vertical");
+  assert.equal(summarizeFlexNode({ type: "bubble" }), "bubble");
+});
+
+test("getNodeOperationState reports enabled operations and copied node label", () => {
+  assert.deepEqual(getNodeOperationState(bubbleRoot, ["body", "contents", 0], { type: "text", text: "Copied" }), {
+    canDelete: true,
+    canDuplicate: true,
+    canCopy: true,
+    canPaste: true,
+    canWrapRootBubble: false,
+    copiedLabel: 'text "Copied"',
+  });
+});
+
+test("getNodeOperationState reports disabled reasons for protected bubble body", () => {
+  assert.deepEqual(getNodeOperationState(bubbleRoot, ["body"], { type: "bubble" }), {
+    canDelete: false,
+    deleteReason: "body は削除できません",
+    canDuplicate: false,
+    duplicateReason: "複製できません",
+    canCopy: true,
+    canPaste: false,
+    pasteReason: "この場所には貼り付けできません",
+    canWrapRootBubble: false,
+    copiedLabel: "bubble",
+  });
 });

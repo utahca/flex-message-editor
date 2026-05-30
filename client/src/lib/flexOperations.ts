@@ -5,6 +5,19 @@ import { canWrapBubbleInCarousel } from "./flexRoot";
 
 const BUBBLE_OPTIONAL_SLOTS = new Set(["header", "hero", "footer"]);
 
+export type NodeOperationState = {
+  canDelete: boolean;
+  deleteReason?: string;
+  canDuplicate: boolean;
+  duplicateReason?: string;
+  canCopy: boolean;
+  copyReason?: string;
+  canPaste: boolean;
+  pasteReason?: string;
+  canWrapRootBubble: boolean;
+  copiedLabel?: string;
+};
+
 function pathEq(a: FlexPath, b: FlexPath): boolean {
   return a.length === b.length && a.every((step, index) => step === b[index]);
 }
@@ -81,6 +94,24 @@ function cloneNode<T>(node: T): T {
 
 function getNodeType(node: unknown): string | undefined {
   return isObjectNode(node) ? (node.type as string | undefined) : undefined;
+}
+
+export function summarizeFlexNode(node: unknown): string {
+  if (!isObjectNode(node)) return "unknown";
+  const type = typeof node.type === "string" ? node.type : undefined;
+  if (!type) return "unknown";
+
+  if (type === "text") return `text "${node.text ?? ""}"`;
+  if (type === "button") {
+    const action = node.action;
+    if (isObjectNode(action) && action.label != null) return `button "${action.label}"`;
+    return "button";
+  }
+  if (type === "box") {
+    return node.layout != null ? `box layout: ${node.layout}` : "box";
+  }
+
+  return type;
 }
 
 function getArrayParentContext(root: unknown, path: FlexPath) {
@@ -185,4 +216,51 @@ export function getSelectionAfterPaste(root: unknown, selectedPath: FlexPath, co
 
 export function canWrapRootBubbleFromSelection(root: unknown, selectedPath: FlexPath | null): boolean {
   return Boolean(selectedPath && selectedPath.length === 0 && canWrapBubbleInCarousel(root));
+}
+
+function getDeleteReason(root: unknown, selectedPath: FlexPath | null): string {
+  if (!selectedPath || selectedPath.length === 0) return "root は削除できません";
+  if (pathEq(selectedPath, ["body"])) return "body は削除できません";
+
+  const parent = getParent(root, selectedPath);
+  const grandParent = getAtPath(root, selectedPath.slice(0, -2));
+  if (
+    Array.isArray(parent) &&
+    parent.length === 1 &&
+    isObjectNode(grandParent) &&
+    grandParent.type === "carousel" &&
+    selectedPath[selectedPath.length - 2] === "contents"
+  ) {
+    return "最後の bubble は削除できません";
+  }
+
+  return "削除できません";
+}
+
+export function getNodeOperationState(
+  root: unknown,
+  selectedPath: FlexPath | null,
+  copiedNode: unknown,
+): NodeOperationState {
+  const canDelete = canDeleteNode(root, selectedPath);
+  const canDuplicate = canDuplicateNode(root, selectedPath);
+  const canCopy = canCopyNode(root, selectedPath);
+  const canPaste = canPasteNode(root, selectedPath, copiedNode);
+  const canWrapRootBubble = canWrapRootBubbleFromSelection(root, selectedPath);
+
+  const state: NodeOperationState = {
+    canDelete,
+    canDuplicate,
+    canCopy,
+    canPaste,
+    canWrapRootBubble,
+  };
+
+  if (!canDelete) state.deleteReason = getDeleteReason(root, selectedPath);
+  if (!canDuplicate) state.duplicateReason = "複製できません";
+  if (!canCopy) state.copyReason = "コピーできません";
+  if (!canPaste) state.pasteReason = "この場所には貼り付けできません";
+  if (isObjectNode(copiedNode)) state.copiedLabel = summarizeFlexNode(copiedNode);
+
+  return state;
 }
