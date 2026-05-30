@@ -79,3 +79,17 @@ test("root action bar uses wrapping classes without fixed height", () => {
   assert.match(root, /shrink-0/);
   assert.doesNotMatch(` ${root} `, / h-9 /);
 });
+
+test("tree toggle exposes expanded state when open", () => {
+  const html = renderActionBar({ treeOpen: true });
+  const toggleButton = getOpeningTag(html, "button", "button-toggle-tree");
+
+  assert.match(toggleButton, /aria-expanded="true"/);
+});
+
+test("tree toggle exposes expanded state when closed", () => {
+  const html = renderActionBar({ treeOpen: false });
+  const toggleButton = getOpeningTag(html, "button", "button-toggle-tree");
+
+  assert.match(toggleButton, /aria-expanded="false"/);
+});

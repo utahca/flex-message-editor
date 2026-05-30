@@ -65,6 +65,7 @@ export function TreeActionBar({
         variant="ghost"
         size="sm"
         className="min-w-0 shrink"
+        aria-expanded={treeOpen}
         onClick={onToggleTree}
         data-testid="button-toggle-tree"
       >
