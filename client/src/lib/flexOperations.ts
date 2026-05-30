@@ -133,7 +133,7 @@ export function canCopyNode(root: unknown, path: FlexPath | null): boolean {
 }
 
 export function getCopiedNode(root: unknown, path: FlexPath | null): unknown {
-  if (!canCopyNode(root, path)) return null;
+  if (!path || !canCopyNode(root, path)) return null;
   return cloneNode(getAtPath(root, path));
 }
 

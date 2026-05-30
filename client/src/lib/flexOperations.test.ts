@@ -8,7 +8,10 @@ import {
   canWrapRootBubbleFromSelection,
   deleteNodeAtPath,
   duplicateNodeAtPath,
+  getCopiedNode,
+  getSelectionAfterDuplicate,
   getSelectionAfterDelete,
+  getSelectionAfterPaste,
   pasteNodeAtPath,
 } from "./flexOperations";
 
@@ -120,6 +123,23 @@ test("canCopyNode allows non-root object nodes", () => {
   assert.equal(canCopyNode(bubbleRoot, ["missing"]), false);
 });
 
+test("getCopiedNode returns a deep copy of valid non-root nodes", () => {
+  const copied = getCopiedNode(bubbleRoot, ["body", "contents", 0]);
+
+  assert.deepEqual(copied, { type: "text", text: "Alpha" });
+  assert.notEqual(copied, (bubbleRoot as any).body.contents[0]);
+});
+
+test("getCopiedNode returns null for invalid and root paths", () => {
+  assert.equal(getCopiedNode(bubbleRoot, []), null);
+  assert.equal(getCopiedNode(bubbleRoot, ["missing"]), null);
+  assert.equal(getCopiedNode(bubbleRoot, null), null);
+});
+
+test("getSelectionAfterDuplicate returns the duplicated node path", () => {
+  assert.deepEqual(getSelectionAfterDuplicate(["body", "contents", 0]), ["body", "contents", 1]);
+});
+
 test("pasteNodeAtPath appends supported nodes into selected box", () => {
   const next = pasteNodeAtPath(bubbleRoot, ["body"], { type: "text", text: "Gamma" });
 
@@ -130,6 +150,14 @@ test("pasteNodeAtPath inserts after selected array item", () => {
   const next = pasteNodeAtPath(bubbleRoot, ["body", "contents", 0], { type: "text", text: "Inserted" });
 
   assert.deepEqual((next as any).body.contents.map((node: any) => node.text), ["Alpha", "Inserted", "Beta"]);
+});
+
+test("getSelectionAfterPaste returns appended path for selected box", () => {
+  assert.deepEqual(getSelectionAfterPaste(bubbleRoot, ["body"], { type: "text", text: "Gamma" }), ["body", "contents", 2]);
+});
+
+test("getSelectionAfterPaste returns inserted-after path for selected array item", () => {
+  assert.deepEqual(getSelectionAfterPaste(bubbleRoot, ["body", "contents", 0], { type: "text", text: "Inserted" }), ["body", "contents", 1]);
 });
 
 test("canPasteNode allows only bubbles into carousel", () => {
