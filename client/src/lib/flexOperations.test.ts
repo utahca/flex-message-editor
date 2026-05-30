@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  canCopyNode,
   canDeleteNode,
+  canDuplicateNode,
+  canPasteNode,
+  canWrapRootBubbleFromSelection,
   deleteNodeAtPath,
+  duplicateNodeAtPath,
   getSelectionAfterDelete,
+  pasteNodeAtPath,
 } from "./flexOperations";
 
 const bubbleRoot = {
@@ -92,4 +98,55 @@ test("getSelectionAfterDelete selects nearest sibling or parent", () => {
 
 test("getSelectionAfterDelete selects carousel bubble after deleting nested optional slot", () => {
   assert.deepEqual(getSelectionAfterDelete(carouselRoot, ["contents", 0, "hero"]), ["contents", 0]);
+});
+
+test("duplicateNodeAtPath inserts a deep copy immediately after an array item", () => {
+  const next = duplicateNodeAtPath(bubbleRoot, ["body", "contents", 0]);
+
+  assert.deepEqual((next as any).body.contents.map((node: any) => node.text), ["Alpha", "Alpha", "Beta"]);
+  assert.notEqual((next as any).body.contents[0], (next as any).body.contents[1]);
+});
+
+test("canDuplicateNode only allows array items under supported parents", () => {
+  assert.equal(canDuplicateNode(bubbleRoot, ["body", "contents", 0]), true);
+  assert.equal(canDuplicateNode(bubbleRoot, ["hero"]), false);
+  assert.equal(canDuplicateNode(bubbleRoot, []), false);
+});
+
+test("canCopyNode allows non-root object nodes", () => {
+  assert.equal(canCopyNode(bubbleRoot, ["body", "contents", 0]), true);
+  assert.equal(canCopyNode(bubbleRoot, ["hero"]), true);
+  assert.equal(canCopyNode(bubbleRoot, []), false);
+  assert.equal(canCopyNode(bubbleRoot, ["missing"]), false);
+});
+
+test("pasteNodeAtPath appends supported nodes into selected box", () => {
+  const next = pasteNodeAtPath(bubbleRoot, ["body"], { type: "text", text: "Gamma" });
+
+  assert.deepEqual((next as any).body.contents.map((node: any) => node.text), ["Alpha", "Beta", "Gamma"]);
+});
+
+test("pasteNodeAtPath inserts after selected array item", () => {
+  const next = pasteNodeAtPath(bubbleRoot, ["body", "contents", 0], { type: "text", text: "Inserted" });
+
+  assert.deepEqual((next as any).body.contents.map((node: any) => node.text), ["Alpha", "Inserted", "Beta"]);
+});
+
+test("canPasteNode allows only bubbles into carousel", () => {
+  const carousel = { type: "carousel", contents: [{ type: "bubble" }] };
+
+  assert.equal(canPasteNode(carousel, [], { type: "bubble" }), true);
+  assert.equal(canPasteNode(carousel, [], { type: "text", text: "Nope" }), false);
+  assert.equal(canPasteNode(carousel, ["contents", 0], { type: "bubble" }), true);
+});
+
+test("canPasteNode rejects unsupported box child types", () => {
+  assert.equal(canPasteNode(bubbleRoot, ["body"], { type: "bubble" }), false);
+  assert.equal(canPasteNode(bubbleRoot, ["body"], null), false);
+});
+
+test("canWrapRootBubbleFromSelection only allows selected root bubble", () => {
+  assert.equal(canWrapRootBubbleFromSelection({ type: "bubble" }, []), true);
+  assert.equal(canWrapRootBubbleFromSelection({ type: "bubble" }, ["body"]), false);
+  assert.equal(canWrapRootBubbleFromSelection({ type: "carousel", contents: [] }, []), false);
 });
