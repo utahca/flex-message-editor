@@ -92,6 +92,7 @@ function getArrayParentContext(root: unknown, path: FlexPath) {
   const index = getIndex(path);
 
   if (!Array.isArray(parent) || index === undefined || !isObjectNode(container)) return null;
+  if (index < 0 || index >= parent.length) return null;
   if (key !== "contents") return null;
   return { parentPath, parent, containerPath, container, index };
 }
@@ -159,8 +160,11 @@ export function pasteNodeAtPath<T>(root: T, selectedPath: FlexPath, copiedNode: 
   if (!target) return root;
   return produce(root, (draft: any) => {
     if (target.mode === "append") {
-      const contents = getAtPath(draft, target.contentsPath);
-      if (Array.isArray(contents)) contents.push(cloneNode(copiedNode));
+      const container = getAtPath(draft, target.contentsPath.slice(0, -1));
+      if (!isObjectNode(container)) return;
+      const appendable = container as { contents?: unknown[] };
+      if (!Array.isArray(appendable.contents)) appendable.contents = [];
+      appendable.contents.push(cloneNode(copiedNode));
       return;
     }
     const parent = getAtPath(draft, target.parentPath);

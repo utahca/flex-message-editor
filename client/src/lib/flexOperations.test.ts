@@ -152,6 +152,30 @@ test("pasteNodeAtPath inserts after selected array item", () => {
   assert.deepEqual((next as any).body.contents.map((node: any) => node.text), ["Alpha", "Inserted", "Beta"]);
 });
 
+test("pasteNodeAtPath rejects missing selected array items", () => {
+  const selectedPath = ["body", "contents", 99];
+  const copiedNode = { type: "text", text: "Nope" };
+
+  assert.equal(canPasteNode(bubbleRoot, selectedPath, copiedNode), false);
+  assert.equal(pasteNodeAtPath(bubbleRoot, selectedPath, copiedNode), bubbleRoot);
+  assert.deepEqual(getSelectionAfterPaste(bubbleRoot, selectedPath, copiedNode), selectedPath);
+});
+
+test("pasteNodeAtPath creates contents when appending into a selected empty box", () => {
+  const root = { type: "bubble", body: { type: "box", layout: "vertical" } };
+  const next = pasteNodeAtPath(root, ["body"], { type: "text", text: "Gamma" });
+
+  assert.deepEqual((next as any).body.contents, [{ type: "text", text: "Gamma" }]);
+  assert.deepEqual(getSelectionAfterPaste(root, ["body"], { type: "text", text: "Gamma" }), ["body", "contents", 0]);
+});
+
+test("pasteNodeAtPath replaces non-array contents when appending into a selected box", () => {
+  const root = { type: "bubble", body: { type: "box", layout: "vertical", contents: "invalid" } };
+  const next = pasteNodeAtPath(root, ["body"], { type: "text", text: "Gamma" });
+
+  assert.deepEqual((next as any).body.contents, [{ type: "text", text: "Gamma" }]);
+});
+
 test("getSelectionAfterPaste returns appended path for selected box", () => {
   assert.deepEqual(getSelectionAfterPaste(bubbleRoot, ["body"], { type: "text", text: "Gamma" }), ["body", "contents", 2]);
 });
