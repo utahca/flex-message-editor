@@ -1,21 +1,28 @@
-import { Check, ChevronDown, ChevronUp, Copy, Layers3, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Check, Copy, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { JsonEditor } from "@/components/JsonEditor";
 import { FlexPreview } from "@/components/FlexPreview";
 import { FlexTreeView, type MoveDirection } from "@/components/FlexTreeView";
 import { PropertyPanel } from "@/components/PropertyPanel";
+import { TreeActionBar } from "@/components/TreeActionBar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { FlexStudioLogo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { SAMPLE_BUBBLE, SAMPLE_JSON } from "@/lib/sample";
 import { copyTextToClipboard, getCopyButtonLabel, type CopyStatus } from "@/lib/clipboard";
+import { getSelectionAfterCarouselWrap, wrapBubbleInCarousel } from "@/lib/flexRoot";
 import {
-  canWrapBubbleInCarousel,
-  getSelectionAfterCarouselWrap,
-  wrapBubbleInCarousel,
-} from "@/lib/flexRoot";
+  canWrapRootBubbleFromSelection,
+  deleteNodeAtPath,
+  duplicateNodeAtPath,
+  getCopiedNode,
+  getNodeOperationState,
+  getSelectionAfterDelete,
+  getSelectionAfterDuplicate,
+  getSelectionAfterPaste,
+  pasteNodeAtPath,
+} from "@/lib/flexOperations";
 import {
-  deleteAtPath,
   formatPath,
   getAtPath,
   moveArrayItemAtPath,
@@ -55,6 +62,7 @@ export default function Studio() {
   const [treeOpen, setTreeOpen] = useState(true);
   const [selectedPath, setSelectedPath] = useState<FlexPath | null>(null);
   const [copyStatus, setCopyStatus] = useState<CopyStatus>("idle");
+  const [copiedNode, setCopiedNode] = useState<unknown>(null);
 
   // Apply theme class.
   useEffect(() => {
@@ -134,8 +142,16 @@ export default function Studio() {
     return () => window.clearTimeout(timeoutId);
   }, [copyStatus]);
 
-  const canDeleteSelected = Boolean(selectedPath && selectedPath.length > 0 && parsed.ok);
-  const canConvertRootToCarousel = Boolean(parsed.ok && canWrapBubbleInCarousel(parsed.value));
+  const operationState = useMemo(
+    () =>
+      parsed.ok
+        ? getNodeOperationState(parsed.value, selectedPath, copiedNode)
+        : getNodeOperationState(null, null, copiedNode),
+    [parsed, selectedPath, copiedNode],
+  );
+  const canConvertRootToCarousel = Boolean(
+    parsed.ok && canWrapRootBubbleFromSelection(parsed.value, selectedPath),
+  );
   const addableTypes = useMemo((): readonly AddableType[] => {
     if (!selectedPath || !parsed.ok) return [];
     const selected = getAtPath(parsed.value, selectedPath) as any;
@@ -155,18 +171,42 @@ export default function Studio() {
   }, [selectedPath, parsed]);
 
   const deleteSelected = useCallback(() => {
-    if (!selectedPath || selectedPath.length === 0 || !parsed.ok) return;
-    const next = deleteAtPath(parsed.value, selectedPath);
+    if (!selectedPath || !parsed.ok) return;
+    const nextSelection = getSelectionAfterDelete(parsed.value, selectedPath);
+    const next = deleteNodeAtPath(parsed.value, selectedPath);
+    if (next === parsed.value) return;
     setJsonText(JSON.stringify(next, null, 2));
-    setSelectedPath(null);
+    setSelectedPath(nextSelection);
   }, [selectedPath, parsed]);
 
+  const duplicateSelected = useCallback(() => {
+    if (!selectedPath || !parsed.ok) return;
+    const next = duplicateNodeAtPath(parsed.value, selectedPath);
+    if (next === parsed.value) return;
+    setJsonText(JSON.stringify(next, null, 2));
+    setSelectedPath(getSelectionAfterDuplicate(selectedPath));
+  }, [selectedPath, parsed]);
+
+  const copySelectedNode = useCallback(() => {
+    if (!parsed.ok) return;
+    setCopiedNode(getCopiedNode(parsed.value, selectedPath));
+  }, [parsed, selectedPath]);
+
+  const pasteCopiedNode = useCallback(() => {
+    if (!selectedPath || !parsed.ok) return;
+    const nextSelection = getSelectionAfterPaste(parsed.value, selectedPath, copiedNode);
+    const next = pasteNodeAtPath(parsed.value, selectedPath, copiedNode);
+    if (next === parsed.value) return;
+    setJsonText(JSON.stringify(next, null, 2));
+    setSelectedPath(nextSelection);
+  }, [selectedPath, parsed, copiedNode]);
+
   const convertRootToCarousel = useCallback(() => {
-    if (!parsed.ok || !canWrapBubbleInCarousel(parsed.value)) return;
+    if (!parsed.ok || !canWrapRootBubbleFromSelection(parsed.value, selectedPath)) return;
     const next = wrapBubbleInCarousel(parsed.value);
     setJsonText(JSON.stringify(next, null, 2));
     setSelectedPath((current) => getSelectionAfterCarouselWrap(current));
-  }, [parsed]);
+  }, [parsed, selectedPath]);
 
   const moveTreeRow = useCallback((path: FlexPath, direction: MoveDirection) => {
     if (!parsed.ok) return;
@@ -296,55 +336,29 @@ export default function Studio() {
             }
             data-testid="pane-tree"
           >
-            <div className="flex h-9 shrink-0 items-center border-b border-border bg-muted/40 px-3">
-              <button
-                type="button"
-                onClick={() => setTreeOpen((v) => !v)}
-                className="flex min-w-0 flex-1 items-center justify-between hover-elevate"
-                data-testid="button-toggle-tree"
-                aria-expanded={treeOpen}
-              >
-                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  ツリービュー
-                </span>
-                <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {selectedPath && (
-                    <span className="hidden font-mono text-[10px] sm:inline" data-testid="text-selected-path">
-                      {formatPath(selectedPath)}
-                    </span>
-                  )}
-                  {treeOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
-                </span>
-              </button>
-              <div className="ml-2 flex shrink-0 items-center gap-1 overflow-x-auto">
-                {canConvertRootToCarousel && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-6 px-2 text-[10px]"
-                    onClick={convertRootToCarousel}
-                    data-testid="button-convert-carousel"
-                  >
-                    <Layers3 className="mr-1 h-3 w-3" />carousel 化
-                  </Button>
-                )}
-                {canAddChild && (
-                  <div className="flex items-center gap-1">
-                    {addableTypes.map((t) => (
-                      <Button key={t} type="button" variant="outline" size="sm" className="h-6 px-2 text-[10px]" onClick={() => addChild(t)}>
-                        <Plus className="mr-1 h-3 w-3" />{t}
-                      </Button>
-                    ))}
-                  </div>
-                )}
-                {canDeleteSelected && (
-                  <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-[10px]" onClick={deleteSelected}>
-                    <Trash2 className="mr-1 h-3 w-3" />delete
-                  </Button>
-                )}
-              </div>
-            </div>
+            <TreeActionBar
+              selectedPathLabel={selectedPath ? formatPath(selectedPath) : undefined}
+              copiedLabel={operationState.copiedLabel}
+              treeOpen={treeOpen}
+              canWrapRootBubble={canConvertRootToCarousel}
+              canAddChild={canAddChild}
+              addableTypes={addableTypes}
+              canDuplicate={operationState.canDuplicate}
+              duplicateReason={operationState.duplicateReason}
+              canCopy={operationState.canCopy}
+              copyReason={operationState.copyReason}
+              canPaste={operationState.canPaste}
+              pasteReason={operationState.pasteReason}
+              canDelete={operationState.canDelete}
+              deleteReason={operationState.deleteReason}
+              onToggleTree={() => setTreeOpen((v) => !v)}
+              onWrapRootBubble={convertRootToCarousel}
+              onAddChild={addChild}
+              onDuplicate={duplicateSelected}
+              onCopy={copySelectedNode}
+              onPaste={pasteCopiedNode}
+              onDelete={deleteSelected}
+            />
             {treeOpen && (
               <div className="flex min-h-0 flex-1">
                 <div className="min-h-0 flex-1 overflow-y-auto">
