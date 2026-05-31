@@ -57,7 +57,7 @@ export function TreeActionBar({
 
   return (
     <div
-      className="flex min-h-9 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2"
+      className="relative z-40 flex min-h-9 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2"
       data-testid="tree-action-bar"
     >
       <Button

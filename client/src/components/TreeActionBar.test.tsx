@@ -80,6 +80,14 @@ test("root action bar uses wrapping classes without fixed height", () => {
   assert.doesNotMatch(` ${root} `, / h-9 /);
 });
 
+test("root action bar stays above the mobile property panel", () => {
+  const html = renderActionBar();
+  const root = getOpeningTag(html, "div", "tree-action-bar");
+
+  assert.match(root, /relative/);
+  assert.match(root, /z-40/);
+});
+
 test("tree toggle exposes expanded state when open", () => {
   const html = renderActionBar({ treeOpen: true });
   const toggleButton = getOpeningTag(html, "button", "button-toggle-tree");
