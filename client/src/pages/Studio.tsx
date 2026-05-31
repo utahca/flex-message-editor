@@ -1,4 +1,4 @@
-import { Check, Copy, RotateCcw } from "lucide-react";
+import { Check, Copy, Redo2, RotateCcw, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { JsonEditor } from "@/components/JsonEditor";
 import { FlexPreview } from "@/components/FlexPreview";
@@ -10,6 +10,12 @@ import { FlexStudioLogo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { SAMPLE_BUBBLE, SAMPLE_JSON } from "@/lib/sample";
 import { copyTextToClipboard, getCopyButtonLabel, type CopyStatus } from "@/lib/clipboard";
+import {
+  createEditHistory,
+  pushEditHistory,
+  redoEditHistory,
+  undoEditHistory,
+} from "@/lib/editHistory";
 import { getSelectionAfterCarouselWrap, wrapBubbleInCarousel } from "@/lib/flexRoot";
 import {
   canWrapRootBubbleFromSelection,
@@ -46,16 +52,19 @@ function tryParse(text: string): ParseResult {
   }
 }
 
+function getInitialJsonText(): string {
+  if (typeof window === "undefined") return SAMPLE_JSON;
+  try {
+    const saved = window.localStorage.getItem("flex-studio:json");
+    return saved ?? SAMPLE_JSON;
+  } catch {
+    return SAMPLE_JSON;
+  }
+}
+
 export default function Studio() {
-  const [jsonText, setJsonText] = useState<string>(() => {
-    if (typeof window === "undefined") return SAMPLE_JSON;
-    try {
-      const saved = window.localStorage.getItem("flex-studio:json");
-      return saved ?? SAMPLE_JSON;
-    } catch {
-      return SAMPLE_JSON;
-    }
-  });
+  const [jsonHistory, setJsonHistory] = useState(() => createEditHistory(getInitialJsonText()));
+  const jsonText = jsonHistory.present;
   const [dark, setDark] = useState<boolean>(() =>
     typeof window !== "undefined" &&
     window.matchMedia?.("(prefers-color-scheme: dark)").matches,
@@ -73,6 +82,20 @@ export default function Studio() {
   }, [dark]);
 
   const parsed = useMemo(() => tryParse(jsonText), [jsonText]);
+  const canUndo = jsonHistory.past.length > 0;
+  const canRedo = jsonHistory.future.length > 0;
+
+  const commitJsonText = useCallback((nextText: string) => {
+    setJsonHistory((current) => pushEditHistory(current, nextText));
+  }, []);
+
+  const undoJsonText = useCallback(() => {
+    setJsonHistory((current) => undoEditHistory(current).history);
+  }, []);
+
+  const redoJsonText = useCallback(() => {
+    setJsonHistory((current) => redoEditHistory(current).history);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -82,6 +105,32 @@ export default function Studio() {
       // Ignore storage errors (e.g. SecurityError in sandboxed/private contexts)
     }
   }, [jsonText]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isModifierPressed = event.metaKey || event.ctrlKey;
+      if (!isModifierPressed || event.altKey) return;
+
+      const key = event.key.toLowerCase();
+      if (key === "z" && event.shiftKey) {
+        event.preventDefault();
+        redoJsonText();
+        return;
+      }
+      if (key === "z") {
+        event.preventDefault();
+        undoJsonText();
+        return;
+      }
+      if (key === "y") {
+        event.preventDefault();
+        redoJsonText();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [redoJsonText, undoJsonText]);
 
   // The parsed object — only updated when JSON is valid.
   const [lastValidValue, setLastValidValue] = useState<any>(SAMPLE_BUBBLE);
@@ -114,15 +163,15 @@ export default function Studio() {
     (p: FlexPath, value: unknown) => {
       if (!parsed.ok) return;
       const next = setAtPath(parsed.value, p, value);
-      setJsonText(JSON.stringify(next, null, 2));
+      commitJsonText(JSON.stringify(next, null, 2));
     },
-    [parsed],
+    [commitJsonText, parsed],
   );
 
   const resetSample = useCallback(() => {
-    setJsonText(SAMPLE_JSON);
+    commitJsonText(SAMPLE_JSON);
     setSelectedPath(null);
-  }, []);
+  }, [commitJsonText]);
 
   const copyJsonToClipboard = useCallback(async () => {
     if (!navigator.clipboard?.writeText) {
@@ -165,26 +214,26 @@ export default function Studio() {
     if (!available.some((candidate) => candidate.id === action.id)) return;
     const next = addNodeByAction(parsed.value, action);
     if (next === parsed.value) return;
-    setJsonText(JSON.stringify(next, null, 2));
+    commitJsonText(JSON.stringify(next, null, 2));
     setSelectedPath(action.selectionPath);
-  }, [parsed, selectedPath]);
+  }, [commitJsonText, parsed, selectedPath]);
 
   const deleteSelected = useCallback(() => {
     if (!selectedPath || !parsed.ok) return;
     const nextSelection = getSelectionAfterDelete(parsed.value, selectedPath);
     const next = deleteNodeAtPath(parsed.value, selectedPath);
     if (next === parsed.value) return;
-    setJsonText(JSON.stringify(next, null, 2));
+    commitJsonText(JSON.stringify(next, null, 2));
     setSelectedPath(nextSelection);
-  }, [selectedPath, parsed]);
+  }, [commitJsonText, selectedPath, parsed]);
 
   const duplicateSelected = useCallback(() => {
     if (!selectedPath || !parsed.ok) return;
     const next = duplicateNodeAtPath(parsed.value, selectedPath);
     if (next === parsed.value) return;
-    setJsonText(JSON.stringify(next, null, 2));
+    commitJsonText(JSON.stringify(next, null, 2));
     setSelectedPath(getSelectionAfterDuplicate(selectedPath));
-  }, [selectedPath, parsed]);
+  }, [commitJsonText, selectedPath, parsed]);
 
   const copySelectedNode = useCallback(() => {
     if (!parsed.ok) return;
@@ -196,16 +245,16 @@ export default function Studio() {
     const nextSelection = getSelectionAfterPaste(parsed.value, selectedPath, copiedNode);
     const next = pasteNodeAtPath(parsed.value, selectedPath, copiedNode);
     if (next === parsed.value) return;
-    setJsonText(JSON.stringify(next, null, 2));
+    commitJsonText(JSON.stringify(next, null, 2));
     setSelectedPath(nextSelection);
-  }, [selectedPath, parsed, copiedNode]);
+  }, [commitJsonText, selectedPath, parsed, copiedNode]);
 
   const convertRootToCarousel = useCallback(() => {
     if (!parsed.ok || !canWrapRootBubbleFromSelection(parsed.value, selectedPath)) return;
     const next = wrapBubbleInCarousel(parsed.value);
-    setJsonText(JSON.stringify(next, null, 2));
+    commitJsonText(JSON.stringify(next, null, 2));
     setSelectedPath((current) => getSelectionAfterCarouselWrap(current));
-  }, [parsed, selectedPath]);
+  }, [commitJsonText, parsed, selectedPath]);
 
   const moveTreeRow = useCallback((path: FlexPath, direction: MoveDirection) => {
     if (!parsed.ok) return;
@@ -214,11 +263,11 @@ export default function Studio() {
     const next = moveArrayItemAtPath(parsed.value, path, offset);
     if (next === parsed.value) return;
 
-    setJsonText(JSON.stringify(next, null, 2));
+    commitJsonText(JSON.stringify(next, null, 2));
     setSelectedPath((current) =>
       current ? remapPathAfterArrayMove(current, path, offset) : current,
     );
-  }, [parsed]);
+  }, [commitJsonText, parsed]);
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
@@ -236,6 +285,28 @@ export default function Studio() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={undoJsonText}
+            disabled={!canUndo}
+            title="Undo"
+            aria-label="Undo"
+            data-testid="button-undo"
+          >
+            <Undo2 className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={redoJsonText}
+            disabled={!canRedo}
+            title="Redo"
+            aria-label="Redo"
+            data-testid="button-redo"
+          >
+            <Redo2 className="h-3.5 w-3.5" />
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -286,7 +357,7 @@ export default function Studio() {
             </div>
           </div>
           <div className="min-h-0 flex-1">
-            <JsonEditor value={jsonText} onChange={setJsonText} dark={dark} />
+            <JsonEditor value={jsonText} onChange={commitJsonText} dark={dark} />
           </div>
         </section>
 
