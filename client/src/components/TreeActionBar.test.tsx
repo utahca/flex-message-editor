@@ -3,12 +3,34 @@ import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { TreeActionBar } from "./TreeActionBar";
+import type { AddAction } from "@/lib/flexAdd";
 
 (globalThis as any).React = React;
 
 function noop() {
   return undefined;
 }
+
+const addActions: AddAction[] = [
+  {
+    id: "add-text",
+    label: "text 追加",
+    type: "text",
+    kind: "contents-item",
+    targetPath: ["body", "contents"],
+    selectionPath: ["body", "contents", 1],
+    node: { type: "text", text: "New text" },
+  },
+  {
+    id: "add-image",
+    label: "image 追加",
+    type: "image",
+    kind: "contents-item",
+    targetPath: ["body", "contents"],
+    selectionPath: ["body", "contents", 1],
+    node: { type: "image", url: "https://example.com/image.png" },
+  },
+];
 
 function renderActionBar(overrides: Partial<React.ComponentProps<typeof TreeActionBar>> = {}) {
   return renderToStaticMarkup(
@@ -17,15 +39,14 @@ function renderActionBar(overrides: Partial<React.ComponentProps<typeof TreeActi
       copiedLabel="body"
       treeOpen={true}
       canWrapRootBubble={true}
-      canAddChild={true}
-      addableTypes={["text", "image"]}
+      addActions={addActions}
       canDuplicate={true}
       canCopy={true}
       canPaste={true}
       canDelete={true}
       onToggleTree={noop}
       onWrapRootBubble={noop}
-      onAddChild={noop}
+      onAddAction={noop}
       onDuplicate={noop}
       onCopy={noop}
       onPaste={noop}
@@ -46,11 +67,32 @@ test("renders action buttons and copied indicator", () => {
   const html = renderActionBar();
 
   assert.match(html, /コピー中:/);
+  assert.match(html, /\+ 追加/);
   assert.match(html, /複製/);
   assert.match(html, /コピー/);
   assert.match(html, /ペースト/);
   assert.match(html, /削除/);
   assert.match(html, /data-testid="text-copied-node"/);
+});
+
+test("renders contextual add menu candidates", () => {
+  const html = renderActionBar();
+
+  assert.match(html, /data-testid="button-add-node"/);
+  assert.match(html, /data-testid="menu-add-node"/);
+  assert.match(html, /text 追加/);
+  assert.match(html, /image 追加/);
+});
+
+test("renders disabled add trigger with useful title when no actions are available", () => {
+  const html = renderActionBar({
+    addActions: [],
+    addReason: "この場所には追加できません",
+  });
+  const addButton = getOpeningTag(html, "button", "button-add-node");
+
+  assert.match(addButton, /\sdisabled=""/);
+  assert.match(addButton, /title="この場所には追加できません"/);
 });
 
 test("renders disabled unavailable actions with useful title attributes", () => {
