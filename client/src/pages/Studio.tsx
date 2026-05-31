@@ -31,7 +31,7 @@ import {
   type ArrayMoveOffset,
   type FlexPath,
 } from "@/lib/flexPath";
-import { createDefaultNode, getAddableTypesForNode, type AddableType } from "@/lib/flexAdd";
+import { addNodeByAction, getAddableActions, type AddAction } from "@/lib/flexAdd";
 import { getTreePaneMaxHeightClass } from "@/lib/treeLayout";
 
 type ParseResult =
@@ -153,23 +153,21 @@ export default function Studio() {
   const canConvertRootToCarousel = Boolean(
     parsed.ok && canWrapRootBubbleFromSelection(parsed.value, selectedPath),
   );
-  const addableTypes = useMemo((): readonly AddableType[] => {
-    if (!selectedPath || !parsed.ok) return [];
-    const selected = getAtPath(parsed.value, selectedPath) as any;
-    return getAddableTypesForNode(selected);
-  }, [selectedPath, parsed]);
-  const canAddChild = addableTypes.length > 0;
+  const addActions = useMemo(
+    () => (parsed.ok ? getAddableActions(parsed.value, selectedPath) : []),
+    [parsed, selectedPath],
+  );
+  const addReason = selectedPath ? "この場所には追加できません" : "追加先を選択してください";
 
-  const addChild = useCallback((newType: AddableType) => {
-    if (!selectedPath || !parsed.ok) return;
-    const selected = getAtPath(parsed.value, selectedPath) as any;
-    if (!selected || typeof selected !== "object") return;
-    if (!getAddableTypesForNode(selected).includes(newType)) return;
-    const contents = Array.isArray(selected.contents) ? selected.contents : [];
-    const next = setAtPath(parsed.value, [...selectedPath, "contents"], [...contents, createDefaultNode(newType)]);
+  const addByAction = useCallback((action: AddAction) => {
+    if (!parsed.ok) return;
+    const available = getAddableActions(parsed.value, selectedPath);
+    if (!available.some((candidate) => candidate.id === action.id)) return;
+    const next = addNodeByAction(parsed.value, action);
+    if (next === parsed.value) return;
     setJsonText(JSON.stringify(next, null, 2));
-    setSelectedPath([...selectedPath, "contents", contents.length]);
-  }, [selectedPath, parsed]);
+    setSelectedPath(action.selectionPath);
+  }, [parsed, selectedPath]);
 
   const deleteSelected = useCallback(() => {
     if (!selectedPath || !parsed.ok) return;
@@ -342,8 +340,8 @@ export default function Studio() {
               copiedLabel={operationState.copiedLabel}
               treeOpen={treeOpen}
               canWrapRootBubble={canConvertRootToCarousel}
-              canAddChild={canAddChild}
-              addableTypes={addableTypes}
+              addActions={addActions}
+              addReason={addReason}
               canDuplicate={operationState.canDuplicate}
               duplicateReason={operationState.duplicateReason}
               canCopy={operationState.canCopy}
@@ -354,7 +352,7 @@ export default function Studio() {
               deleteReason={operationState.deleteReason}
               onToggleTree={() => setTreeOpen((v) => !v)}
               onWrapRootBubble={convertRootToCarousel}
-              onAddChild={addChild}
+              onAddAction={addByAction}
               onDuplicate={duplicateSelected}
               onCopy={copySelectedNode}
               onPaste={pasteCopiedNode}

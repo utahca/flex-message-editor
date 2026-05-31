@@ -1,14 +1,14 @@
 import { ChevronDown, ChevronUp, ClipboardPaste, Copy, Files, Layers3, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { AddableType } from "@/lib/flexAdd";
+import type { AddAction } from "@/lib/flexAdd";
 
 type TreeActionBarProps = {
   selectedPathLabel?: string;
   copiedLabel?: string;
   treeOpen: boolean;
   canWrapRootBubble: boolean;
-  canAddChild: boolean;
-  addableTypes: readonly AddableType[];
+  addActions: readonly AddAction[];
+  addReason?: string;
   canDuplicate: boolean;
   duplicateReason?: string;
   canCopy: boolean;
@@ -19,7 +19,7 @@ type TreeActionBarProps = {
   deleteReason?: string;
   onToggleTree: () => void;
   onWrapRootBubble: () => void;
-  onAddChild: (type: AddableType) => void;
+  onAddAction: (action: AddAction) => void;
   onDuplicate: () => void;
   onCopy: () => void;
   onPaste: () => void;
@@ -35,8 +35,8 @@ export function TreeActionBar({
   copiedLabel,
   treeOpen,
   canWrapRootBubble,
-  canAddChild,
-  addableTypes,
+  addActions,
+  addReason,
   canDuplicate,
   duplicateReason,
   canCopy,
@@ -47,13 +47,14 @@ export function TreeActionBar({
   deleteReason,
   onToggleTree,
   onWrapRootBubble,
-  onAddChild,
+  onAddAction,
   onDuplicate,
   onCopy,
   onPaste,
   onDelete,
 }: TreeActionBarProps) {
   const ToggleIcon = treeOpen ? ChevronDown : ChevronUp;
+  const canAdd = addActions.length > 0;
 
   return (
     <div
@@ -103,13 +104,44 @@ export function TreeActionBar({
         </Button>
       )}
 
-      {canAddChild &&
-        addableTypes.map((type) => (
-          <Button key={type} type="button" variant="outline" size="sm" onClick={() => onAddChild(type)}>
-            <Plus className="h-4 w-4" />
-            {type} 追加
+      {canAdd ? (
+        <details className="relative inline-flex">
+          <Button asChild variant="outline" size="sm">
+            <summary className="cursor-pointer list-none" data-testid="button-add-node">
+              <Plus className="h-4 w-4" />
+              + 追加
+            </summary>
           </Button>
-        ))}
+          <div
+            className="absolute left-0 top-full z-50 mt-1 min-w-40 rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+            data-testid="menu-add-node"
+          >
+            {addActions.map((action) => (
+              <button
+                key={action.id}
+                type="button"
+                className="flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                onClick={() => onAddAction(action)}
+                data-testid={`menu-item-${action.id}`}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </details>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled
+          title={addReason}
+          data-testid="button-add-node"
+        >
+          <Plus className="h-4 w-4" />
+          + 追加
+        </Button>
+      )}
 
       <Button
         type="button"
