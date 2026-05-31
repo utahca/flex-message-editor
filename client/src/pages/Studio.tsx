@@ -32,6 +32,7 @@ import {
   type FlexPath,
 } from "@/lib/flexPath";
 import { createDefaultNode, getAddableTypesForNode, type AddableType } from "@/lib/flexAdd";
+import { getTreePaneMaxHeightClass } from "@/lib/treeLayout";
 
 type ParseResult =
   | { ok: true; value: unknown }
@@ -332,7 +333,7 @@ export default function Studio() {
           <div
             className={
               "flex shrink-0 flex-col border-t border-border bg-card transition-[max-height] " +
-              (treeOpen ? "max-h-[45vh]" : "max-h-9")
+              getTreePaneMaxHeightClass(treeOpen)
             }
             data-testid="pane-tree"
           >
