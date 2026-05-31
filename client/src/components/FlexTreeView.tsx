@@ -2,6 +2,7 @@ import { ArrowDown, ArrowUp, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { summarizeFlexNode } from "@/lib/flexOperations";
 import { formatPath, type FlexPath } from "@/lib/flexPath";
 
 type Node = {
@@ -50,16 +51,19 @@ function pathEq(a: FlexPath | null, b: FlexPath): boolean {
 }
 
 function summarize(node: Node): string {
-  if (!node || typeof node !== "object") return "";
-  if (node.type === "text") return `“${(node.text as string) ?? ""}”`;
-  if (node.type === "image") return (node.url as string) ? "image" : "";
-  if (node.type === "button") {
-    const action = (node as any).action;
-    return action?.label ? `“${action.label}”` : "";
+  const type = typeof node.type === "string" ? node.type : "";
+  const fullSummary = summarizeFlexNode(node);
+  if (type && fullSummary === type) return "";
+  if (type === "text" && fullSummary.startsWith("text ")) {
+    const text = fullSummary.slice("text ".length);
+    return text.startsWith('"') && text.endsWith('"') ? `“${text.slice(1, -1)}”` : text;
   }
-  if (node.type === "icon") return "";
-  if (node.type === "box") return node.layout ? `layout: ${node.layout}` : "";
-  return "";
+  if (type === "button" && fullSummary.startsWith("button ")) {
+    const label = fullSummary.slice("button ".length);
+    return label.startsWith('"') && label.endsWith('"') ? `“${label.slice(1, -1)}”` : label;
+  }
+  if (type === "box" && fullSummary.startsWith("box ")) return fullSummary.slice("box ".length);
+  return fullSummary === "unknown" ? "" : fullSummary;
 }
 
 function TreeRow({
