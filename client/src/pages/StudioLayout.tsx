@@ -3,6 +3,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 
 type StudioLayoutProps = {
   desktop: boolean;
+  treeOpen: boolean;
   editor: ReactNode;
   preview: ReactNode;
   treeToolbar: ReactNode;
@@ -16,36 +17,44 @@ function TreePanel({
   tree,
   property,
   desktop,
+  open,
 }: {
   toolbar: ReactNode;
   tree: ReactNode;
   property: ReactNode | null;
   desktop: boolean;
+  open: boolean;
 }) {
   return (
-    <section className="flex h-full min-h-0 flex-col border-t border-border bg-card" data-testid="pane-tree">
+    <section
+      className={`flex min-h-0 flex-col border-t border-border bg-card ${open ? "h-full" : "shrink-0"}`}
+      data-testid="pane-tree"
+    >
       {toolbar}
-      <div className="flex min-h-0 flex-1">
-        {desktop && property ? (
-          <ResizablePanelGroup direction="horizontal" className="min-h-0">
-            <ResizablePanel defaultSize={65} minSize={35}>
-              <div className="min-h-0 flex-1 overflow-y-auto">{tree}</div>
-            </ResizablePanel>
-            <ResizableHandle withHandle data-testid="resize-handle-tree-property" />
-            <ResizablePanel defaultSize={35} minSize={25}>
-              <div className="min-h-0 min-w-[260px]">{property}</div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        ) : (
-          <div className="min-h-0 flex-1 overflow-y-auto">{tree}</div>
-        )}
-      </div>
+      {open && (
+        <div className="flex min-h-0 flex-1">
+          {desktop && property ? (
+            <ResizablePanelGroup direction="horizontal" className="min-h-0">
+              <ResizablePanel defaultSize={65} minSize={35}>
+                <div className="min-h-0 flex-1 overflow-y-auto">{tree}</div>
+              </ResizablePanel>
+              <ResizableHandle withHandle data-testid="resize-handle-tree-property" />
+              <ResizablePanel defaultSize={35} minSize={25}>
+                <div className="min-h-0 min-w-[260px]">{property}</div>
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          ) : (
+            <div className="min-h-0 flex-1 overflow-y-auto">{tree}</div>
+          )}
+        </div>
+      )}
     </section>
   );
 }
 
 export function StudioLayout({
   desktop,
+  treeOpen,
   editor,
   preview,
   treeToolbar,
@@ -58,7 +67,7 @@ export function StudioLayout({
       <main className="flex min-h-0 flex-1 flex-col lg:hidden" data-testid="studio-mobile-layout">
         {editor}
         {preview}
-        <TreePanel toolbar={treeToolbar} tree={tree} property={null} desktop={false} />
+        <TreePanel toolbar={treeToolbar} tree={tree} property={null} desktop={false} open={treeOpen} />
         {mobileProperty}
       </main>
     );
@@ -76,15 +85,24 @@ export function StudioLayout({
         </ResizablePanel>
         <ResizableHandle withHandle data-testid="resize-handle-main" />
         <ResizablePanel defaultSize={50} minSize={35}>
-          <ResizablePanelGroup direction="vertical" className="min-h-0">
-            <ResizablePanel defaultSize={60} minSize={35}>
-              {preview}
-            </ResizablePanel>
-            <ResizableHandle withHandle data-testid="resize-handle-preview-tree" />
-            <ResizablePanel defaultSize={40} minSize={25}>
-              <TreePanel toolbar={treeToolbar} tree={tree} property={property} desktop={true} />
-            </ResizablePanel>
-          </ResizablePanelGroup>
+          {treeOpen ? (
+            <ResizablePanelGroup direction="vertical" className="min-h-0">
+              <ResizablePanel defaultSize={60} minSize={35}>
+                {preview}
+              </ResizablePanel>
+              <ResizableHandle withHandle data-testid="resize-handle-preview-tree" />
+              <ResizablePanel defaultSize={40} minSize={25}>
+                <TreePanel toolbar={treeToolbar} tree={tree} property={property} desktop={true} open={treeOpen} />
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          ) : (
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="min-h-0 flex-1">
+                {preview}
+              </div>
+              <TreePanel toolbar={treeToolbar} tree={tree} property={null} desktop={true} open={treeOpen} />
+            </div>
+          )}
         </ResizablePanel>
       </ResizablePanelGroup>
     </main>

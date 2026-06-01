@@ -6,10 +6,17 @@ import { StudioLayout } from "./StudioLayout";
 
 (globalThis as any).React = React;
 
-function renderLayout(hasPropertyPanel = true) {
+function renderLayout({
+  hasPropertyPanel = true,
+  treeOpen = true,
+}: {
+  hasPropertyPanel?: boolean;
+  treeOpen?: boolean;
+} = {}) {
   return renderToStaticMarkup(
     <StudioLayout
       desktop={true}
+      treeOpen={treeOpen}
       editor={<div data-testid="stub-editor">editor</div>}
       preview={<div data-testid="stub-preview">preview</div>}
       treeToolbar={<div data-testid="stub-tree-toolbar">tree toolbar</div>}
@@ -33,6 +40,7 @@ test("studio layout keeps mobile fallback layout", () => {
   const html = renderToStaticMarkup(
     <StudioLayout
       desktop={false}
+      treeOpen={true}
       editor={<div data-testid="stub-editor">editor</div>}
       preview={<div data-testid="stub-preview">preview</div>}
       treeToolbar={<div data-testid="stub-tree-toolbar">tree toolbar</div>}
@@ -48,7 +56,16 @@ test("studio layout keeps mobile fallback layout", () => {
 });
 
 test("studio layout omits tree property handle when no property panel is available", () => {
-  const html = renderLayout(false);
+  const html = renderLayout({ hasPropertyPanel: false });
 
+  assert.doesNotMatch(html, /data-testid="resize-handle-tree-property"/);
+});
+
+test("studio layout collapses the desktop tree pane to the toolbar when tree is closed", () => {
+  const html = renderLayout({ treeOpen: false });
+
+  assert.match(html, /data-testid="studio-desktop-resizable-layout"/);
+  assert.match(html, /data-testid="stub-tree-toolbar"/);
+  assert.doesNotMatch(html, /data-testid="resize-handle-preview-tree"/);
   assert.doesNotMatch(html, /data-testid="resize-handle-tree-property"/);
 });

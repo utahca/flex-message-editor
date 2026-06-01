@@ -468,6 +468,7 @@ export default function Studio() {
 
       <StudioLayout
         desktop={isDesktop}
+        treeOpen={treeOpen}
         editor={editorPane}
         preview={previewPane}
         treeToolbar={treeToolbar}
