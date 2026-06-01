@@ -96,8 +96,7 @@ flex-studio/
 │       │   ├── utils.ts
 │       │   └── queryClient.ts      ← (現状未使用)
 │       └── hooks/
-├── server/                          ← Express。本 MVP では API 未使用。Pages 化時は削除可能
-├── shared/                          ← Drizzle/Zod スキーマ。本 MVP では未使用
+├── server/                          ← Express + Vite 開発/production server。API は未使用
 ├── plan.md                          ← 設計意図・既知制約・次タスクのロードマップ
 ├── package.json
 ├── vite.config.ts
